@@ -7,8 +7,9 @@
 'By Brian Ronnle, enhanced for Foundry VTT by Chris Normand/Nose66
 'Based on the original export filter by Graham Brand (Spyke)
 '
-Const LastUpdated = 20210114
-' Last Updated: Jan 14, 2021
+Const LastUpdated = 20210208
+' Last Updated: Nov 25, 2020
+' v1
 '
 Const gcaStat = 1
 Const Stats = 1
@@ -40,11 +41,12 @@ Sub Main()
 
     ' begin the xml file
     Paragraph = "<?xml version=""1.0"" encoding=""iso-8859-1""?>"
-    Paragraph = "<root release=""Foundry"" version=""GCA-1"">"
+    Paragraph = "<root release=""Foundry"" version=""GCA-4"">"
     Paragraph = "<character>"
 
     ' in Fantasy Grounds the <name> field must be at the top level
     Paragraph = "<name type=""string"">" & Char.Name & "</name>"
+    Paragraph = "<portrait type=""string"">" & Char.Portrait & "</portrait>"
 
     ' add the various sections
     Call PrintAbilities()
@@ -695,6 +697,8 @@ Sub PrintAds()
                     Paragraph = "<points type=""number"">" & CStr(work) & "</points>"
 	              Paragraph = "<text type=""string"">" & Char.Items(i).TagItem("usernotes") & "</text>"
                     Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+            	  Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+            	  Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
                     Paragraph = "</id-" & tag_index & ">"
 
                 End If
@@ -734,6 +738,8 @@ Sub PrintAds()
                 Paragraph = "<points type=""number"">" & CStr(work) & "</points>"
                 Paragraph = "<text type=""string"">" & Char.Items(i).TagItem("usernotes") & "</text>"
                 Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+                Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+                Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
                 Paragraph = "</id-" & tag_index & ">"
 
             End If
@@ -789,6 +795,8 @@ Sub PrintDisads()
                 Paragraph = "<points type=""number"">" & CStr(work) & "</points>"
                 Paragraph = "<text type=""string"">" & Char.Items(i).TagItem("usernotes") & "</text>"
                 Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+                Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+                Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
                 Paragraph = "</id-" & tag_index & ">"
 
             End If
@@ -827,6 +835,8 @@ Sub PrintDisads()
                 Paragraph = "<points type=""number"">" & CStr(work) & "</points>"
                 Paragraph = "<text type=""string"">" & Char.Items(i).TagItem("usernotes") & "</text>"
                 Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+                Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+                Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
                 Paragraph = "</id-" & tag_index & ">"
 
             End If
@@ -898,6 +908,8 @@ Sub PrintSkills()
             Paragraph = "<points type=""number"">" & Char.Items(i).TagItem("points") & "</points>"
             Paragraph = "<text type=""string"">" & Char.Items(i).TagItem("usernotes") & "</text>"
             Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+            Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+            Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
 
             Paragraph = "</id-" & tag_index & ">"
 
@@ -946,7 +958,9 @@ Sub PrintSpells()
                 tmp = tmp & work
             End If
 
-		
+		spellClass = ""
+		spellResist = ""
+		if Char.Items(i).TagItem("class") <> "" Then
 			classSplit = Split(Char.Items(i).TagItem("class"), "/", 2)
 			If UBound(classSplit) > 0 Then
 				spellClass = classSplit(0)
@@ -954,6 +968,11 @@ Sub PrintSpells()
 			Else
 				spellClass = classSplit(0)
 			End If
+		End If
+		spellCat = Char.Items(i).TagItem("cat")
+		if spellCat = "%NewSpellList%" Then	
+			spellCat = ""
+		End If
 			
             Paragraph = "<name type=""string"">" & UpdateEscapeChars(tmp) & "</name>"
             Paragraph = "<level type=""number"">" & Char.Items(i).Level & "</level>"
@@ -966,8 +985,10 @@ Sub PrintSpells()
             Paragraph = "<duration type=""string"">" & Char.Items(i).TagItem("duration") & "</duration>"
             Paragraph = "<costmaintain type=""string"">" & Char.Items(i).TagItem("castingcost") & "</costmaintain>"
             Paragraph = "<resist type=""string"">" & spellResist & "</resist>"
-            Paragraph = "<college type=""string"">" & Char.Items(i).TagItem("cat") & "</college>"
+            Paragraph = "<college type=""string"">" & spellCat & "</college>"
             Paragraph = "<pageref type=""string"">" & Char.Items(i).TagItem("page") & "</pageref>"
+            Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+            Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
 
             work = Char.Items(i).TagItem("stepoff")
             If work <> "" Then
@@ -1014,6 +1035,10 @@ Sub PrintHandWeapons()
         okay = False
         If Char.Items(i).TagItem("charreach") <> "" Then
             okay = True
+        End If
+	  'that don't have a range
+        If Char.Items(i).DamageModeTagItemCount("charrangemax") > 0 Then
+            okay = False
         End If
 
         'exclude hidden items
@@ -1124,7 +1149,8 @@ Sub PrintRangedWeapons()
     Paragraph = "<rangedcombatlist>"
 
     For i = 1 To Char.Items.Count
-        If Char.Items(i).ItemType = Equipment Then
+' Don't limit ranged attacks to only equipment
+'        If Char.Items(i).ItemType = Equipment Then
 
             'we only want to include ranged weapons here, so look for items with Range
             okay = False
@@ -1217,7 +1243,7 @@ Sub PrintRangedWeapons()
                 End If
 
             End If
-        End If
+'        End If
     Next
 
     Paragraph = "</rangedcombatlist>"
@@ -1319,10 +1345,11 @@ Sub PrintEquipment()
                 Paragraph = "<cost type=""string"">" & StrToDbl(Char.Items(i).tagitem("cost")) / qty & "</cost>"
                 Paragraph = "<weight type=""number"">" & StrToDbl(Char.Items(i).tagitem("weight")) / qty & "</weight>"
                 Paragraph = "<location type=""string"">" & Char.Items(i).tagitem("location") & "</location>"
-                Paragraph = "<notes type=""formattedtext"">" & Char.Items(i).tagitem("description") & "</notes>"
+                Paragraph = "<notes type=""formattedtext"">" & UpdateEscapeChars(Char.Items(i).tagitem("description")) & "</notes>"
                 Paragraph = "<carried type=""number"">2</carried>"
-                Paragraph = "<pageref type=""string"">" & Char.Items(i).tagitem("page") & "</pageref>"
-
+                Paragraph = "<pageref type=""string"">" & UpdateEscapeChars(Char.Items(i).tagitem("page")) & "</pageref>"
+                Paragraph = "<parentuuid>" & Char.Items(i).ParentKey & "</parentuuid>"
+                Paragraph = "<uuid>k" & Char.Items(i).idkey & "</uuid>"
                 Paragraph = "</id-" & tag_index & ">"
 
             End If

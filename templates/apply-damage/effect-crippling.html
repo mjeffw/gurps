@@ -1,11 +1,11 @@
 <li name='result-effect'>
   <div>
     <div>
-      <header>Crippling Injury, {{detail}}</header>
-      <aside>{{#if reduceInjury}}Damage above {{amount}} HP ignored.{{/if}}</aside>
+      <header>{{localize "GURPS.crippling"}}{{detail}}</header>
+      <aside>{{#if reduceInjury}}{{localize "GURPS.damageAbove"}}{{amount}}{{localize "GURPS.hpIgnored"}}{{/if}}</aside>
       {{#if (eq detail 'Tail')}}
       <aside>
-        Ground creatures: -1 DX.<br />Swimmer/flyer: -2 DX and half Move.
+        {{localize "GURPS.groundCreatures"}}: -1 DX.<br />{{localize "GURPS.swimmerFlyer"}}: -2 DX and half Move.
       </aside>
       {{/if}}
     </div>
