@@ -5,4 +5,5 @@
 .project
 .settings/
 Thumbs.db
-scripts/foundry.js
+scripts
+node_modules
