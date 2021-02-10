@@ -15,10 +15,6 @@ export async function doRoll(actor, formula, targetmods, prefix, thing, origtarg
     origtarget: origtarget
   }
 
-  // Is Dice So Nice enabled ?
-  let niceDice = false;
-  try { niceDice = game.settings.get('dice-so-nice', 'settings').enabled; } catch { }
-
   // TODO Code below is duplicated in damagemessage.mjs (DamageChat) -- make sure it is updated in both places
   // Lets collect up the modifiers, they are used differently depending on the type of roll
   let modifier = 0;
@@ -84,7 +80,7 @@ export async function doRoll(actor, formula, targetmods, prefix, thing, origtarg
     if (rtotal == 1) thing = thing.replace("points", "point");
 
     chatdata['rtotal'] = rtotal
-    chatdata['rolls'] = roll.dice[0].results.map(it => it.result.toString()).join(', ')
+    chatdata['rolls'] = roll.results.join(' ').replace(" + 0", "");
     chatdata['modifier'] = modifier
   }
 

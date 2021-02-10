@@ -10,7 +10,7 @@ To install the latest stable release, use this manifest URL:
 
 [Getting Started video](https://youtu.be/FUqtOkdyBCo) / [Players Guide video](https://youtu.be/x-xD39x_JQw)
 
-Join us on Discord: [GURPS Foundry-VTT Discord](https://discord.gg/7qzzgJDT)
+Join us on Discord: [GURPS Foundry-VTT Discord](https://discord.gg/6xJBcYWyED)
 
 ## The 'main' branch is being actively developed... and it may break things.   
 ### If you are looking for the latest stable release, use the manifest URL above.
@@ -29,6 +29,8 @@ This is what we are currently working on:
     - Fixed actors not having the new calculated values (currentdodge, currentmove, equippedparry, equippedblock)
     - Added Mook Generator defaults editor
     - GCA export/import now handles parents for Ads/Disads/Spells and Skills
+    - Rewrite of damage parser, more uniform handling of multipliers/divisors, etc.  support for const damage [1 cut]
+    - Don't tell anyone, but we now support any sided dice for non-targeted, non-derived damage rolls [3d4], [2d20 cut]
 
 ### History
 
