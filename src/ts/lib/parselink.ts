@@ -1,6 +1,6 @@
 'use strict'
 
-import { GURPS } from "../module/gurps.js";
+import { GURPS } from "../modules/gurps";
 
 /* Here is where we do all the work to try to parse the text inbetween [ ].
  Supported formats:

@@ -1,8 +1,8 @@
 'use strict'
 
-import { woundModifiers } from './damage-tables.js'
-import { d6ify, isNiceDiceEnabled, generateUniqueId } from '../../lib/utilities.js'
-import { gspan } from '../../lib/parselink.js'
+import { woundModifiers } from './damage-tables'
+import { d6ify, isNiceDiceEnabled, generateUniqueId } from '../../lib/utilities'
+import { gspan } from '../../lib/parselink'
 
 const damageLinkPattern = /^(\d+)d6?([-+]\d+)?([xX\*]\d+)? ?(\([.\d]+\))?(!)? ?(.*)$/g
 const swingThrustPattern = /^(SW|Sw|sw|THR|Thr|thr)([-+]\d+)?(!)?( .*)?$/g

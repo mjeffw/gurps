@@ -1,6 +1,6 @@
 'use strict'
-import parselink from '../lib/parselink.js'
-import { NpcInput } from '../lib/npc-input.js'
+import parselink from '../lib/parselink'
+import { NpcInput } from '../lib/npc-input'
 
 /**
  *  This holds functions for all things chat related
