@@ -37,7 +37,7 @@ class Entity {
     this.options = options
   }
 
-  create: (data, options:object={}) => Promise<any>
+  create: (data, options:object={}) => Promise<Entity|Entity[]>
 }
 
 /**
