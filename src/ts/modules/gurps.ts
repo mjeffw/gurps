@@ -1,5 +1,5 @@
 // Import Modules
-import parselink from '../lib/parselink'
+import { parselink, parseForDamage } from '../lib/parselink'
 
 import { GurpsActor } from './actor'
 import { GurpsItem } from './item'
@@ -547,7 +547,7 @@ function trim(s) {
 GURPS.trim = trim
 
 //	"modifier", "attribute", "selfcontrol", "roll", "damage", "skill", "pdf"
-async function performAction(action, actor, event) {
+async function performAction(action, actor, event, targets) {
   if (!action) return
   let actordata = actor?.data
   let prefix = ''
@@ -587,22 +587,24 @@ async function performAction(action, actor, event) {
   }
 
   if (action.type === 'roll') {
-    prefix = 'Rolling ' + action.formula + ' ' + action.desc
-    formula = d6ify(action.formula)
+    prefix = 'Rolling ' + action.displayformula + ' ' + action.desc
+    formula = action.rollformula
     if (!!action.costs) targetmods.push(GURPS.ModifierBucket.makeModifier(0, action.costs))
   }
 
   if (action.type === 'damage') {
     if (!!action.costs) GURPS.ModifierBucket.addModifier(0, action.costs)
-    GURPS.damageChat.create(actor || game.user, action.formula, action.damagetype, event)
+    GURPS.damageChat.create(actor || game.user, action.formula, action.damagetype, event, null, targets)
     return true
   }
 
-  const BASIC_SWING = 'sw'
-
   if (action.type === 'deriveddamage')
     if (!!actor) {
-      let df = action.derivedformula == BASIC_SWING ? actordata.data.swing : actordata.data.thrust
+      let df = action.derivedformula.match(/[Ss][Ww]/) ? actordata.data.swing : actordata.data.thrust
+      if (!df) {
+        ui.notifications.warn(actor.name + ' does not have a ' + action.derivedformula.toUpperCase() + ' formula')
+        return true
+      }
       formula = df + action.formula
       if (!!action.costs) GURPS.ModifierBucket.addModifier(0, action.costs)
       GURPS.damageChat.create(
@@ -610,14 +612,15 @@ async function performAction(action, actor, event) {
         formula,
         action.damagetype,
         event,
-        action.derivedformula + action.formula
+        action.derivedformula + action.formula,
+        targets
       )
       return true
     } else ui.notifications.warn('You must have a character selected')
 
   if (action.type === 'derivedroll')
     if (!!actor) {
-      let df = action.derivedformula == BASIC_SWING ? actordata.data.swing : actordata.data.thrust
+      let df = action.derivedformula.match(/[Ss][Ww]/) ? actordata.data.swing : actordata.data.thrust
       formula = d6ify(df + action.formula)
       prefix = 'Rolling ' + action.derivedformula + action.formula + ' ' + action.desc
       if (!!action.costs) targetmods.push(GURPS.ModifierBucket.makeModifier(0, action.costs))
@@ -676,7 +679,7 @@ async function performAction(action, actor, event) {
     if (!!actor) {
       const [bestAction, attempts] = processLinked(action)
       if (!bestAction) {
-        ui.notifications.warn("No skill or spell named '" + attempts.join("' or '") + "' found on " + actor.name)
+        ui.notifications.warn("No skill or spell named '" + attempts.join("' or '").replace("<", "&lt;") + "' found on " + actor.name)
         return false
       }
       formula = '3d6'
@@ -691,7 +694,7 @@ async function performAction(action, actor, event) {
       thing = action.name
       att = GURPS.findAttack(actordata, thing)
       if (!att) {
-        ui.notifications.warn("No melee or ranged attack named '" + action.name + "' found on " + actor.name)
+        ui.notifications.warn("No melee or ranged attack named '" + action.name.replace("<", "&lt;") + "' found on " + actor.name)
         return false
       }
       thing = att.name
@@ -741,7 +744,7 @@ async function performAction(action, actor, event) {
       })
       if (!target) target = parseInt(actordata.data[action.path])
       if (target > 0) formula = '3d6'
-      else ui.notifications.warn('Unable to find a ' + action.orig + ' to roll')
+      else ui.notifications.warn('Unable to find a ' + action.orig.replace("<", "&lt;") + ' to roll on ' + actor.name)
     } else ui.notifications.warn('You must have a character selected')
 
   if (!formula || target == 0 || isNaN(target)) return false // Target == 0, so no roll.  Target == -1 for non-targetted rolls (roll, damage)
@@ -824,17 +827,8 @@ async function handleRoll(event, actor, targets) {
   }
   if ('damage' in element.dataset) {
     // expect text like '2d+1 cut'
-    let formula = element.innerText.trim()
-    let dtype = formula.replace(DamageChat.basicRegex, '').trim() // Remove any kind of damage formula
-    dtype = dtype.replace(DamageChat.fullRegex, '').trim()
-
-    let i = dtype.indexOf(' ')
-    if (i > 0) {
-      dtype = dtype.substring(0, i).trim()
-      formula = formula.split(dtype)[0]
-    }
-
-    GURPS.damageChat.create(actor, formula, dtype, event, null, targets)
+    let action = parseForDamage(element.innerText.trim())
+    if (!!action.action) performAction(action.action, actor, event, targets) 
     return
   }
   if ('roll' in element.dataset) {
@@ -850,6 +844,7 @@ GURPS.handleRoll = handleRoll
 
 // If the desc contains *Cost ?FP or *Max:9 then perform action
 function applyModifierDesc(actor, desc) {
+  if (!desc) return null
   let parse = desc.replace(/.*\* ?[Cc]osts? (\d+) ?[Ff][Pp].*/g, '$1')
   if (parse != desc && !!actor && !actor.isSelf) {
     let fp = parseInt(parse)
@@ -957,13 +952,13 @@ GURPS.resolve = resolve
   and followed the On-the-Fly formulas.   As such, we may already have an action block (base 64 encoded so we can handle
   any text).  If not, we will just re-parse the text looking for the action block.    
 */
-function handleGurpslink(event, actor, desc) {
+function handleGurpslink(event, actor, desc, targets) {
   event.preventDefault()
   let element = event.currentTarget
   let action = element.dataset.action // If we have already parsed
   if (!!action) action = JSON.parse(atob(action))
   else action = parselink(element.innerText, desc).action
-  this.performAction(action, actor, event)
+  this.performAction(action, actor, event, targets)
 }
 GURPS.handleGurpslink = handleGurpslink
 
@@ -1156,18 +1151,30 @@ GURPS.ConditionalInjury = new GURPSConditionalInjury()
 
 GURPS.onRightClickGurpslink = function (event) {
   event.preventDefault()
+  event.stopImmediatePropagation()    // Since this may occur in note or a list (which has its own RMB handler)
   let el = event.currentTarget
   let action = el.dataset.action
   if (!!action) {
     action = JSON.parse(window.atob(action))
-    GURPS.whisperOtfToOwner(action.orig, event, action.hasOwnProperty('blindroll') && !action.blindroll) // only offer blind rolls for things that can be blind, No need to offer blind roll if it is already blind
+    if (action.type === 'damage' || action.type === 'deriveddamage')
+      GURPS.resolveDamageRoll(event, GURPS.LastActor, action.orig, game.user.isGM, true)
+    else 
+      GURPS.whisperOtfToOwner(action.orig, event, action, GURPS.LastActor) // only offer blind rolls for things that can be blind, No need to offer blind roll if it is already blind
   }
 }
 
-GURPS.whisperOtfToOwner = function (otf, event, canblind, actor) {
+GURPS.whisperOtfToOwner = function (otf, event, blindcheck, actor) {
   if (!game.user.isGM) return
   if (!!otf) {
     otf = otf.replace(/ \(\)/g, '') // sent as "name (mode)", and mode is empty (only necessary for attacks)
+    let canblind = false
+    if (!!blindcheck) {
+      canblind = blindcheck.hasOwnProperty('blindroll')
+      if (canblind && blindcheck.blindroll) {
+        otf = "!" + otf
+        canblind = false
+      }
+    }  
     let users = actor?.getUsers(CONST.ENTITY_PERMISSIONS.OWNER, true).filter(u => !u.isGM) || []
     let botf = '[!' + otf + ']'
     otf = '[' + otf + ']'
@@ -1196,12 +1203,6 @@ GURPS.whisperOtfToOwner = function (otf, event, canblind, actor) {
           label: 'Whisper Blindroll to ' + nms,
           callback: () => GURPS.sendOtfMessage(botf, true, users)
         }
-      if (canblind)
-        buttons.four = {
-          icon: '<i class="fas fa-user-slash"></i>',
-          label: 'Whisper Blindroll to ' + nms,
-          callback: () => GURPS.sendOtfMessage(botf, true, users)
-        }
     }
     buttons.def = {
       icon: '<i class="far fa-copy"></i>',
@@ -1222,14 +1223,6 @@ GURPS.whisperOtfToOwner = function (otf, event, canblind, actor) {
     )
     d.render(true)
   }
-
-  let d = new Dialog({
-    title: "GM 'Send Formula'",
-    content: `<div style='text-align:center'>How would you like to send the formula:<br><br><div style='font-weight:700'>${otf}<br>&nbsp;</div>`,
-    buttons: buttons,
-    default: 'four'
-  })
-  d.render(true)
 }
 
 GURPS.sendOtfMessage = function (content, blindroll, users) {
@@ -1246,6 +1239,60 @@ GURPS.sendOtfMessage = function (content, blindroll, users) {
   }
   ChatMessage.create(msgData)
 }
+
+GURPS.resolveDamageRoll = function(event, actor, otf, isGM, isOtf = false) {
+    let title = game.i18n.localize('GURPS.RESOLVEDAMAGETitle')
+    let prompt = game.i18n.localize('GURPS.RESOLVEDAMAGEPrompt')
+    let quantity = game.i18n.localize('GURPS.RESOLVEDAMAGEQuantity')
+    let sendTo = game.i18n.localize('GURPS.RESOLVEDAMAGESendTo')
+    let multiple = game.i18n.localize('GURPS.RESOLVEDAMAGEMultiple')
+
+    let buttons = {}
+
+    if (isGM) {
+      buttons.send = {
+        icon: '<i class="fas fa-paper-plane"></i>',
+        label: `${sendTo}`,
+        callback: () => GURPS.whisperOtfToOwner(otf, event, false, actor) // Can't blind roll damages (yet)
+      }
+    }
+
+    buttons.multiple = {
+      icon: '<i class="fas fa-clone"></i>',
+      label: `${multiple}`,
+      callback: html => {
+        let text = html.find('#number-rolls').val()
+        let number = parseInt(text)
+        let targets = []
+        for (let index = 0; index < number; index++) {
+          targets[index] = `${index + 1}`
+        }
+        if (isOtf)
+          game.GURPS.handleGurpslink(event, actor, null, targets)
+        else
+          game.GURPS.handleRoll(event, actor, targets)
+      }
+    }
+
+    let dlg = new Dialog({
+      title: `${title}`,
+      content: `
+        <div style='display: flex; flex-flow: column nowrap; place-items: center;'>
+          <p style='font-size: large;'><strong>${otf}</strong></p>
+          <p>${prompt}</p>
+          <div style='display: inline-grid; grid-template-columns: auto 1fr; place-items: center; gap: 4px'>
+            <label>${quantity}</label>
+            <input type='text' id='number-rolls' class='digits-only' style='text-align: center;' value='2'>
+          </div>
+          <p/>
+        </div>
+        `,
+      buttons: buttons,
+      default: 'send'
+    })
+    dlg.render(true)
+  }
+
 
 /*********************  HACK WARNING!!!! *************************/
 /* The following method has been secretly added to the Object class/prototype to
@@ -1409,7 +1456,7 @@ Hooks.once('ready', async function () {
       html.find('.pdflink').contextmenu(event => {
         event.preventDefault()
         let el = event.currentTarget
-        GURPS.whisperOtfToOwner('PDF:' + el.innerText, event, false)
+        GURPS.whisperOtfToOwner('PDF:' + el.innerText, event, false, GURPS.LastActor)
       })
     }
   })
