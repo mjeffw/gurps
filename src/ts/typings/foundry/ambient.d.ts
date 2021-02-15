@@ -7,6 +7,29 @@
  * 
 */
 
+
+/**
+ * Update a source object by replacing its keys and values with those from a 
+ * target object.
+ * @param original Object to start with
+ * @param other Object to merge in
+ * @param options Merge options
+ * @param _d Privately used to track recursion depth
+ */
+declare function mergeObject(
+  original: object,
+  other: object,
+  options?: {
+    insertKeys: boolean=true,
+    insertValues: boolean=true,
+    overwrite: boolean=true,
+    recursive: boolean=true,
+    inplace: boolean=true,
+    enforceTypes: boolean=false
+  },
+  _d=0
+): object
+
 /**
  * An array of status effect icons which can be applied to Tokens
  */
